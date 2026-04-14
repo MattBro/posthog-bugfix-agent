@@ -18,11 +18,12 @@ flowchart LR
 
 | File | Description |
 |---|---|
-| `agent.json` | Claude Managed Agent definition (model, tools, system prompt) |
-| `environment.json` | Agent execution environment (cloud, unrestricted networking) |
-| `hog-function.hog` | PostHog Hog function that bridges exceptions to the agent |
-| `setup.sh` | Deploys/updates all components via Anthropic + PostHog APIs |
-| `.github/workflows/deploy.yml` | Auto-deploys on push to main |
+| [`agent.json`](agent.json) | Claude Managed Agent definition (model, tools) |
+| [`system-prompt.md`](system-prompt.md) | Agent system prompt (readable markdown, injected at deploy) |
+| [`environment.json`](environment.json) | Agent execution environment (cloud, unrestricted networking) |
+| [`hog-function.hog`](hog-function.hog) | PostHog Hog function that bridges exceptions to the agent |
+| [`setup.sh`](setup.sh) | Deploys/updates all components via Anthropic + PostHog APIs |
+| [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) | Auto-deploys on push to main |
 
 ## How dedup works
 
