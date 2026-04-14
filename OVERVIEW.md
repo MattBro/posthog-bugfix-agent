@@ -99,3 +99,14 @@ The agent kept hitting the same avoidable issues every run - things like trying 
 Fix: ran Claude Code against the agent's session logs to identify repeated patterns, then updated the system prompt to preempt them. This is essentially **prompt optimization from production traces**.
 
 This pattern - reviewing agent logs and feeding learnings back into the prompt - would be a good fit for a scheduled agent job. A "meta-agent" that periodically audits bugfix session logs and proposes prompt improvements.
+
+### 5. Large codebases
+
+The current setup works well for small repos (Nexus Games is vanilla HTML/CSS/JS). For larger codebases, every session would spend significant time and tokens just on setup.
+
+Two approaches to solve this:
+
+- **`init_script`**: The environment config supports an `init_script` that runs when the container spins up, before the agent starts. Pre-clone the repo, install dependencies, run builds - the agent wakes up with everything on disk. This is how Sentry's integration works at scale.
+- **MCP-only (no clone)**: Our current vault-based setup already uses GitHub MCP tools (`get_file_contents`, `search_code`) instead of `git clone`. The agent only fetches the files it needs. For a monorepo with millions of lines, this is far more efficient than cloning - but the agent can't run tests or builds locally.
+
+The ideal setup for a large codebase would combine both: `init_script` pre-clones and builds, the agent uses MCP for reading code (fast, targeted), and falls back to the local clone for running tests and builds.
