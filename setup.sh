@@ -107,7 +107,8 @@ if [[ "$HTTP_CODE" == "200" ]]; then
     UPDATE_BODY=$(echo "$ENV_JSON" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
-data.pop('id', None)
+for key in ['id', 'type']:
+    data.pop(key, None)
 data['version'] = ${CURRENT_VERSION}
 print(json.dumps(data))
 ")
