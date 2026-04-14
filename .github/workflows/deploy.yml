@@ -7,6 +7,7 @@ on:
       - agent.json
       - environment.json
       - hog-function.hog
+      - setup.sh
   workflow_dispatch:
 
 jobs:
