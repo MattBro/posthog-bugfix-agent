@@ -1,6 +1,7 @@
 {
   "id": "agent_011Ca3dyMDiKQz3ZUZbvGmyi",
   "name": "nexus-games-bugfixer",
+  "description": "Auto-fixes bugs in Nexus Games when PostHog captures exceptions",
   "model": {
     "id": "claude-sonnet-4-6",
     "speed": "standard"
