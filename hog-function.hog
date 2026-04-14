@@ -1,0 +1,89 @@
+// PostHog Hog Function: Auto-fix bugs via Claude Managed Agent
+// Function ID: 019d892a-c5a7-0000-bf22-3732d5778c64
+// Project: 380973
+//
+// Triggers on $exception events, extracts error details, creates a
+// Claude Managed Agent session, and sends the error as a user message.
+//
+// TODO: Add dedup masking. The PostHog masking bytecode compiler currently
+// treats the hash expression as a string literal instead of evaluating it,
+// so masking (e.g. based on md5 of exception_type + exception_value) is
+// not functional. Re-enable once the compiler bug is fixed.
+
+let exceptionTypes := event.properties.$exception_types
+let exceptionValues := event.properties.$exception_values
+let exceptionList := event.properties.$exception_list
+
+if (empty(exceptionTypes) or empty(exceptionValues)) {
+    print('No exception data found, skipping')
+    return
+}
+
+let exceptionType := exceptionTypes[1]
+let exceptionValue := exceptionValues[1]
+
+let stackTrace := ''
+if (not empty(exceptionList)) {
+    let firstException := exceptionList[1]
+    if (not empty(firstException.stacktrace) and not empty(firstException.stacktrace.frames)) {
+        let frames := firstException.stacktrace.frames
+        for (let i, frame in frames) {
+            stackTrace := stackTrace || f'{frame.filename}:{frame.lineno} in {frame.function}\n'
+        }
+    }
+}
+
+let repoUrl := inputs.repo_url
+let githubToken := inputs.github_token
+let anthropicApiKey := inputs.anthropic_api_key
+let agentId := inputs.agent_id
+
+let userMessage := f'A new exception was captured in production.\n\nRepository: {repoUrl}\nGITHUB_TOKEN: {githubToken}\n\nException Type: {exceptionType}\nException Value: {exceptionValue}\n\nStack Trace:\n{stackTrace}\n\nPlease clone the repo, analyze the error, fix the bug, and open a PR.'
+
+// Create a new Managed Agent session
+let sessionResponse := fetch('https://api.anthropic.com/v1/sessions', {
+    'method': 'POST',
+    'headers': {
+        'x-api-key': anthropicApiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'managed-agents-2026-04-01',
+        'content-type': 'application/json'
+    },
+    'body': {
+        'agent_id': agentId,
+        'environment_id': inputs.environment_id
+    }
+})
+
+if (sessionResponse.status != 200) {
+    print(f'Failed to create session: {sessionResponse.status}')
+    return
+}
+
+let sessionId := sessionResponse.body.id
+print(f'Created session: {sessionId}')
+
+// Send the error details as a user message
+let eventResponse := fetch(f'https://api.anthropic.com/v1/sessions/{sessionId}/events', {
+    'method': 'POST',
+    'headers': {
+        'x-api-key': anthropicApiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'managed-agents-2026-04-01',
+        'content-type': 'application/json'
+    },
+    'body': {
+        'type': 'user_message',
+        'message': {
+            'role': 'user',
+            'content': userMessage
+        }
+    }
+})
+
+if (eventResponse.status != 200) {
+    print(f'Failed to send message: {eventResponse.status}')
+    return
+}
+
+print(f'Sent error to agent session {sessionId} for {exceptionType}: {exceptionValue}')
