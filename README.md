@@ -4,24 +4,14 @@ Automated bug-fixing pipeline: PostHog captures an exception, a Hog function cre
 
 ## Architecture
 
-```
-$exception event (PostHog)
-        |
-        v
-  Hog Function (PostHog CDP)
-  - Checks dedup (PostHog issue status + existing Anthropic sessions)
-  - Marks issue as pending_release to block duplicates
-  - Creates a Claude Managed Agent session (POST /v1/sessions)
-  - Sends error details as a user message (POST /v1/sessions/{id}/events)
-        |
-        v
-  Claude Managed Agent (Anthropic)
-  - Clones the repo using GITHUB_TOKEN
-  - Analyzes the stack trace and identifies root cause
-  - Creates a minimal fix on a fix/ branch
-  - Opens a PR via the GitHub API with error context
-  - Squash-merges the PR via the GitHub API
-  - Resolves the PostHog error tracking issue (PATCH status=resolved)
+See [OVERVIEW.md](OVERVIEW.md) for the full diagram, file map, and design notes.
+
+```mermaid
+flowchart LR
+    A["$exception"] -->|triggers| B["Hog Function"]
+    B -->|dedup + create session| C["Claude Managed Agent"]
+    C -->|clone, fix, PR, merge| D["GitHub"]
+    C -->|resolve issue| E["PostHog"]
 ```
 
 ## Components
