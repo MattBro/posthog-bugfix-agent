@@ -28,10 +28,3 @@ flowchart LR
     style D fill:#1a1a2e,stroke:#0f3460,color:#eee
     style E fill:#2d2d2d,stroke:#555,color:#eee
 ```
-
-### Agent session
-
-```mermaid
-flowchart LR
-    A["Clone repo"] --> B["Analyze error"] --> C["Fix bug"] --> D["Push + PR"] --> E["Merge"] --> F["Resolve in PostHog"]
-```
