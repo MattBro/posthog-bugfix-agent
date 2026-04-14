@@ -17,7 +17,7 @@ Errors fire at 3am. Someone gets paged, opens the error, reads the stack trace, 
 ```mermaid
 flowchart LR
     A["Production App"] -- "$exception" --> B["PostHog"]
-    B -- "triggers" --> C["Hog Function<br/><i>CAS dedup</i>"]
+    B -- "triggers" --> C["Hog Function"]
     C -- "create session" --> D["Claude Agent"]
     D -- "clone, fix, PR, merge" --> E["GitHub"]
     D -- "resolve issue" --> B
