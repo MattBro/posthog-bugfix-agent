@@ -46,7 +46,7 @@ See [OVERVIEW.md](OVERVIEW.md) for the full breakdown of why simpler approaches 
 
 ### Create a vault for GitHub credentials
 
-GitHub credentials are stored in an Anthropic [Vault](https://docs.anthropic.com/en/docs/agents/managed-agents/vaults) - they never appear in the agent prompt or session logs. The agent accesses GitHub through MCP tools, and the vault proxy handles auth.
+GitHub credentials are stored in an Anthropic [Vault](https://platform.claude.com/docs/en/agents/managed-agents/vaults) - they never appear in the agent prompt or session logs. The agent accesses GitHub through MCP tools, and the vault proxy handles auth.
 
 ```bash
 # Create a vault

@@ -1,6 +1,6 @@
 # Lesson 2: Secrets
 
-Don't put tokens in the prompt. Use [Vaults](https://docs.anthropic.com/en/docs/agents/managed-agents/vaults) + GitHub MCP.
+Don't put tokens in the prompt. Use [Vaults](https://platform.claude.com/docs/en/agents/managed-agents/vaults) + GitHub MCP.
 
 ```mermaid
 flowchart LR
