@@ -1,0 +1,22 @@
+name: Deploy agent
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - agent.json
+      - environment.json
+      - hog-function.hog
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy agent, environment, and Hog function
+        run: ./setup.sh
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
