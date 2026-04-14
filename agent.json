@@ -1,5 +1,4 @@
 {
-  "id": "agent_011Ca3dyMDiKQz3ZUZbvGmyi",
   "name": "posthog-bugfix-agent",
   "description": "Auto-fixes bugs when PostHog captures exceptions. Clones the repo, analyzes the error, opens a PR, and merges it.",
   "model": {

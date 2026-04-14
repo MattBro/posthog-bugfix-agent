@@ -21,3 +21,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          POSTHOG_PROJECT_ID: ${{ secrets.POSTHOG_PROJECT_ID }}
+          POSTHOG_FUNCTION_ID: ${{ secrets.POSTHOG_FUNCTION_ID }}
+          AGENT_ID: ${{ secrets.AGENT_ID }}
+          ENVIRONMENT_ID: ${{ secrets.ENVIRONMENT_ID }}

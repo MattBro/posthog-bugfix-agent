@@ -51,17 +51,30 @@ The Hog function prevents duplicate agent sessions with two layers:
 - GitHub token with `repo` scope (push + PR permissions) for the target repository
 - A PostHog project with error tracking enabled and a Hog function already created (setup.sh updates via PATCH, it does not create the function from scratch)
 
-### Deploy manually
+### First-time deploy
+
+On first run, the script creates the agent and environment and prints their IDs. Save these for future deploys.
 
 ```bash
 export ANTHROPIC_API_KEY="sk-ant-..."
 export POSTHOG_API_KEY="phx_..."
-
-# Optional: override defaults
-# export POSTHOG_PROJECT_ID="your-project-id"
-# export POSTHOG_FUNCTION_ID="your-function-id"
+export POSTHOG_PROJECT_ID="12345"
+export POSTHOG_FUNCTION_ID="your-hog-function-uuid"
 
 chmod +x setup.sh
+./setup.sh
+# => Agent created: agent_...
+# => Environment created: env_...
+# Save these IDs!
+```
+
+### Subsequent deploys
+
+Set the agent and environment IDs so the script updates instead of recreating:
+
+```bash
+export AGENT_ID="agent_..."
+export ENVIRONMENT_ID="env_..."
 ./setup.sh
 ```
 
@@ -74,6 +87,10 @@ Add these as [repository secrets](https://docs.github.com/en/actions/security-fo
 ```bash
 gh secret set ANTHROPIC_API_KEY
 gh secret set POSTHOG_API_KEY
+gh secret set POSTHOG_PROJECT_ID
+gh secret set POSTHOG_FUNCTION_ID
+gh secret set AGENT_ID        # after first deploy
+gh secret set ENVIRONMENT_ID  # after first deploy
 ```
 
 ### Hog function inputs
@@ -90,14 +107,6 @@ Configure these in the PostHog UI for the Hog function (or they're deployed via 
 | `posthogProjectId` | PostHog project ID |
 | `agentId` | Claude Managed Agent ID |
 | `environmentId` | Claude Environment ID |
-
-## Customizing
-
-This repo is configured for a specific deployment. To adapt it for your own project:
-
-1. **`agent.json`**: Update the `system` prompt if your project has specific conventions (build steps, framework, etc.)
-2. **`setup.sh`**: Set `POSTHOG_PROJECT_ID` and `POSTHOG_FUNCTION_ID` env vars (or edit the defaults)
-3. **Hog function inputs**: Configure your repo URL, tokens, and IDs in the PostHog UI
 
 ## Known limitations
 
