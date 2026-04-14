@@ -145,8 +145,8 @@ payload = {
         {'type': 'string', 'key': 'agentId', 'label': 'Claude Agent ID', 'required': True},
         {'type': 'string', 'key': 'environmentId', 'label': 'Claude Environment ID', 'required': True},
         {'type': 'string', 'key': 'posthogProjectId', 'label': 'PostHog Project ID', 'required': True},
-        {'type': 'string', 'key': 'gitAuthorName', 'label': 'Git Author Name', 'required': True, 'default': 'posthog-bugfix-agent'},
-        {'type': 'string', 'key': 'gitAuthorEmail', 'label': 'Git Author Email', 'required': True, 'default': 'noreply@users.noreply.github.com'},
+        {'type': 'string', 'key': 'gitAuthorName', 'label': 'Git Author Name', 'required': False, 'default': 'posthog-bugfix-agent'},
+        {'type': 'string', 'key': 'gitAuthorEmail', 'label': 'Git Author Email', 'required': False, 'default': 'noreply@users.noreply.github.com'},
     ]
 }
 print(json.dumps(payload))
