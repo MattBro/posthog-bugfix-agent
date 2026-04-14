@@ -37,7 +37,7 @@ flowchart LR
 
 ### 1. Idempotency (one agent per error)
 
-The same exception can fire hundreds of times in seconds. The Hog function needs to ensure exactly one agent session is created per error.
+The same exception can fire hundreds of times in seconds. The [Hog function](hog-function.hog) needs to ensure exactly one agent session is created per error.
 
 **First attempt**: Check PostHog issue status, then set `pending_release`. Problem: classic TOCTOU race. Two invocations both read `active`, both proceed.
 
