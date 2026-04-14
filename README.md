@@ -27,11 +27,13 @@ flowchart LR
 
 ## How dedup works
 
-The Hog function prevents duplicate agent sessions with two layers:
+The Hog function uses compare-and-swap (CAS) on the PostHog error issue to ensure exactly one agent session per error:
 
-1. **PostHog issue status**: Before creating a session, it checks the error tracking issue status. If the issue is already `pending_release`, `resolved`, or `suppressed`, it skips. Immediately after passing this check, it marks the issue as `pending_release` to block subsequent events.
+1. **Quick check**: Skip if issue is already `pending_release`, `resolved`, or `suppressed`
+2. **Write nonce**: Write a unique nonce (`bugfix-lock-{timestamp}-{event.uuid}`) to the issue description and set `pending_release`
+3. **Read back**: Read the issue description back. If the nonce matches, we won the lock. If another invocation overwrote it, we lost - skip.
 
-2. **Anthropic session title matching**: As a second layer (catches race conditions), it lists recent Anthropic sessions and skips if one already exists with a matching `{errorType}: {errorMessage}` title.
+See [OVERVIEW.md](OVERVIEW.md) for the full breakdown of why simpler approaches didn't work.
 
 ## Setup
 
@@ -103,8 +105,7 @@ Configure these in the PostHog UI for the Hog function (or they're deployed via 
 
 ## Known limitations
 
-- **Race condition window**: There's a small TOCTOU gap between reading the PostHog issue status and writing `pending_release`. Two near-simultaneous exceptions could both pass the check. The Anthropic session title dedup is a mitigation but has the same theoretical gap.
-- **Session list pagination**: The Anthropic session dedup only checks the first page of sessions. Very old matching sessions on later pages would be missed.
+- **CAS is best-effort**: The compare-and-swap uses PostHog's API which is last-write-wins, not truly atomic. In theory two writes could interleave, but in practice the write-then-read window is small enough that duplicates are extremely rare.
 - **Tokens in message text**: The GitHub token and PostHog API key are passed as plaintext in the user message to the agent. This is inherent to the architecture since the agent needs them for git operations and API calls.
 
 ## License
