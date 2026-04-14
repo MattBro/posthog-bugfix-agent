@@ -58,7 +58,32 @@ flowchart LR
 
 Each invocation writes a unique nonce (`bugfix-lock-{timestamp}-{event.uuid}`) to the issue description, then reads it back. PostHog's API is last-write-wins, so two concurrent writers both succeed, but only one nonce survives the read-back. The loser sees a different nonce and backs off.
 
-### 2. Token efficiency
+### 2. Secrets management (Vaults + MCP)
+
+Early versions passed `GITHUB_TOKEN` as plaintext in the user message. This meant the token was visible in Anthropic's session logs and the agent's conversation.
+
+**Fix**: Anthropic's [Vaults](https://docs.anthropic.com/en/docs/agents/managed-agents/vaults) + GitHub MCP.
+
+```mermaid
+flowchart LR
+    A["Hog Function"] -- "vault_ids" --> B["Session"]
+    B -- "MCP tool call" --> C["Vault Proxy"]
+    C -- "injects auth" --> D["GitHub API"]
+
+    style C fill:#16c784,stroke:#16c784,color:#fff
+```
+
+- A **Vault** stores the GitHub PAT as a `static_bearer` credential bound to `https://api.githubcopilot.com/mcp/`
+- The **agent** declares a GitHub MCP server in its config - no token, just the URL
+- At **session creation**, the Hog function passes `vault_ids` - linking the session to the credential
+- MCP tool calls go through a **vault proxy** that injects the token - the agent never sees it
+- The token never appears in the prompt, conversation, or session logs
+
+The agent uses GitHub MCP tools (`get_file_contents`, `create_branch`, `create_pull_request`, etc.) instead of `git clone` + `curl`.
+
+**Remaining gap**: the PostHog API key is still in the user message (needed for `curl` to resolve the error). This could be vaulted too if PostHog had an MCP server the agent could use.
+
+### 3. Token efficiency
 
 The system prompt is sent on every agent turn. The original verbose prompt was ~500 tokens. Compressed to ~250 tokens using "caveman-style" - same instructions, stripped filler words.
 
@@ -67,7 +92,7 @@ Before: "You are an autonomous bug-fixing agent. When you receive an error repor
 After:  "Autonomous bugfix agent. User msg has REPO, GITHUB_TOKEN..."
 ```
 
-### 3. Agent runtime inefficiencies
+### 4. Agent runtime inefficiencies
 
 The agent kept hitting the same avoidable issues every run - things like trying commands that don't exist in the sandbox, retrying failed approaches. These burned tokens without making progress.
 
