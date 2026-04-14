@@ -101,25 +101,7 @@ RESPONSE=$(anthropic_request GET "/environments/${ENV_ID}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -1)
 
 if [[ "$HTTP_CODE" == "200" ]]; then
-    BODY=$(echo "$RESPONSE" | sed '$d')
-    CURRENT_VERSION=$(echo "$BODY" | python3 -c "import sys,json; print(json.load(sys.stdin).get('version', 1))")
-    echo "    Environment ${ENV_ID} exists (version ${CURRENT_VERSION}), updating..."
-    UPDATE_BODY=$(echo "$ENV_JSON" | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-for key in ['id', 'type']:
-    data.pop(key, None)
-data['version'] = ${CURRENT_VERSION}
-print(json.dumps(data))
-")
-    RESPONSE=$(anthropic_request POST "/environments/${ENV_ID}" "$UPDATE_BODY")
-    HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-    if [[ "$HTTP_CODE" != "200" ]]; then
-        echo "    Error updating environment (HTTP ${HTTP_CODE}):" >&2
-        echo "$RESPONSE" | sed '$d' >&2
-        exit 1
-    fi
-    echo "    Environment updated."
+    echo "    Environment ${ENV_ID} already exists, skipping (type/networking are immutable)."
 else
     echo "    Environment ${ENV_ID} not found, creating..."
     RESPONSE=$(anthropic_request POST "/environments" "$ENV_JSON")
