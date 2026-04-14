@@ -24,7 +24,13 @@
     },
     {
       "type": "mcp_toolset",
-      "mcp_server_name": "github"
+      "mcp_server_name": "github",
+      "default_config": {
+        "enabled": true,
+        "permission_policy": {
+          "type": "always_allow"
+        }
+      }
     }
   ]
 }
