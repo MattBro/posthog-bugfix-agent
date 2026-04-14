@@ -107,7 +107,7 @@ if (sessionResponse.status >= 400) {
 
 let sessionId := sessionResponse.body.id
 
-let userMessage := f'A production exception was captured by PostHog. Fix this bug, open a PR, merge it, then resolve the PostHog error.\n\nGITHUB_TOKEN: {inputs.githubToken}\nREPO: {inputs.githubRepo}\nDEFAULT_BRANCH: {inputs.defaultBranch}\nPOSTHOG_API_KEY: {inputs.posthogApiKey}\nPOSTHOG_ISSUE_URL: {phBaseUrl}\n\nERROR DETAILS:\n- Type: {errorType}\n- Message: {errorMessage}\n- URL: {currentUrl}\n- Source files: {sources}\n- Stack: {stackSummary}\n- Full exception data: {jsonStringify(exList)}\n\nAfter merging the PR, resolve the PostHog error by sending PATCH to POSTHOG_ISSUE_URL with body status=resolved and Authorization Bearer POSTHOG_API_KEY header.'
+let userMessage := f'A production exception was captured by PostHog. Fix this bug, open a PR, merge it, then resolve the PostHog error.\n\nGITHUB_TOKEN: {inputs.githubToken}\nREPO: {inputs.githubRepo}\nDEFAULT_BRANCH: {inputs.defaultBranch}\nGIT_AUTHOR_NAME: {inputs.gitAuthorName}\nGIT_AUTHOR_EMAIL: {inputs.gitAuthorEmail}\nPOSTHOG_API_KEY: {inputs.posthogApiKey}\nPOSTHOG_ISSUE_URL: {phBaseUrl}\n\nERROR DETAILS:\n- Type: {errorType}\n- Message: {errorMessage}\n- URL: {currentUrl}\n- Source files: {sources}\n- Stack: {stackSummary}\n- Full exception data: {jsonStringify(exList)}\n\nAfter merging the PR, resolve the PostHog error by sending PATCH to POSTHOG_ISSUE_URL with body status=resolved and Authorization Bearer POSTHOG_API_KEY header.'
 
 let eventsResponse := fetch(f'https://api.anthropic.com/v1/sessions/{sessionId}/events', {
     'method': 'POST',

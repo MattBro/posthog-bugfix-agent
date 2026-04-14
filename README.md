@@ -107,6 +107,8 @@ Configure these in the PostHog UI for the Hog function (or they're deployed via 
 | `posthogProjectId` | PostHog project ID |
 | `agentId` | Claude Managed Agent ID |
 | `environmentId` | Claude Environment ID |
+| `gitAuthorName` | Git commit author name (e.g. `Brooker's Bugfix Agent`) |
+| `gitAuthorEmail` | Git commit author email (e.g. `you+bugfix-agent@users.noreply.github.com`) |
 
 ## Known limitations
 
