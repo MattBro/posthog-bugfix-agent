@@ -15,19 +15,6 @@ flowchart LR
     style E fill:#2d2d2d,stroke:#555,color:#eee
 ```
 
-### Dedup detail (CAS)
-
-```mermaid
-flowchart LR
-    A{"Status?"} -- "already handled" --> B["Skip"]
-    A -- "active" --> C["Write nonce"] --> D{"Read back"}
-    D -- "nonce matches" --> E["Won lock - proceed"]
-    D -- "different nonce" --> B
-
-    style B fill:#e94560,stroke:#e94560,color:#fff
-    style E fill:#16c784,stroke:#16c784,color:#fff
-```
-
 ### Agent session
 
 ```mermaid
@@ -56,13 +43,20 @@ The same exception can fire hundreds of times in seconds. The Hog function needs
 
 **Second attempt**: Added Anthropic session title matching as a second layer. Better, but same fundamental race condition, just smaller window.
 
-**Final approach**: Compare-and-swap (CAS) on the PostHog issue description field. Each invocation:
-1. Quick check: skip if already `pending_release`/`resolved`/`suppressed`
-2. Write a unique nonce (`bugfix-lock-{timestamp}-{event.uuid}`) to the issue description
-3. Read back the issue description
-4. If the nonce matches, we won the lock. If not, another invocation won - skip.
+**Final approach**: Compare-and-swap (CAS) on the PostHog issue description field:
 
-This works because PostHog's API is last-write-wins. Two concurrent writers will both succeed, but only one nonce survives the read-back. The loser sees a different nonce and backs off.
+```mermaid
+flowchart LR
+    A{"Status?"} -- "already handled" --> B["Skip"]
+    A -- "active" --> C["Write nonce"] --> D{"Read back"}
+    D -- "nonce matches" --> E["Won lock - proceed"]
+    D -- "different nonce" --> B
+
+    style B fill:#e94560,stroke:#e94560,color:#fff
+    style E fill:#16c784,stroke:#16c784,color:#fff
+```
+
+Each invocation writes a unique nonce (`bugfix-lock-{timestamp}-{event.uuid}`) to the issue description, then reads it back. PostHog's API is last-write-wins, so two concurrent writers both succeed, but only one nonce survives the read-back. The loser sees a different nonce and backs off.
 
 ### 2. Token efficiency
 
