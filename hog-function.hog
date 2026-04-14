@@ -2,88 +2,137 @@
 // Function ID: 019d892a-c5a7-0000-bf22-3732d5778c64
 // Project: 380973
 //
-// Triggers on $exception events, extracts error details, creates a
-// Claude Managed Agent session, and sends the error as a user message.
-//
-// TODO: Add dedup masking. The PostHog masking bytecode compiler currently
-// treats the hash expression as a string literal instead of evaluating it,
-// so masking (e.g. based on md5 of exception_type + exception_value) is
-// not functional. Re-enable once the compiler bug is fixed.
+// Triggers on $exception events. Deduplicates using PostHog issue status
+// and Anthropic session title matching. Creates a Claude Managed Agent
+// session that autonomously fixes the bug, opens+merges a PR, and resolves
+// the PostHog error.
 
-let exceptionTypes := event.properties.$exception_types
-let exceptionValues := event.properties.$exception_values
-let exceptionList := event.properties.$exception_list
+let errorType := event.properties.$exception_types[1] ?? 'Error'
+let errorMessage := event.properties.$exception_values[1] ?? 'Unknown error'
+let issueId := event.properties.$exception_issue_id ?? ''
+let currentUrl := event.properties.$current_url ?? 'unknown'
+let sources := event.properties.$exception_sources ?? []
+let exList := event.properties.$exception_list ?? []
 
-if (empty(exceptionTypes) or empty(exceptionValues)) {
-    print('No exception data found, skipping')
+if (empty(issueId)) {
+    print('No issue ID, skipping')
     return
 }
 
-let exceptionType := exceptionTypes[1]
-let exceptionValue := exceptionValues[1]
+let phBaseUrl := f'https://us.posthog.com/api/environments/{inputs.posthogProjectId}/error_tracking/issues/{issueId}/'
 
-let stackTrace := ''
-if (not empty(exceptionList)) {
-    let firstException := exceptionList[1]
-    if (not empty(firstException.stacktrace) and not empty(firstException.stacktrace.frames)) {
-        let frames := firstException.stacktrace.frames
-        for (let i, frame in frames) {
-            stackTrace := stackTrace || f'{frame.filename}:{frame.lineno} in {frame.function}\n'
+// Dedup check 1: PostHog issue status
+let issueResponse := fetch(phBaseUrl, {
+    'method': 'GET',
+    'headers': {
+        'Authorization': f'Bearer {inputs.posthogApiKey}'
+    }
+})
+
+if (issueResponse.status < 400) {
+    let issueStatus := issueResponse.body.status ?? 'active'
+    if (issueStatus == 'pending_release') {
+        print(f'Issue {issueId} is pending_release, skipping')
+        return
+    }
+    if (issueStatus == 'resolved') {
+        print(f'Issue {issueId} is resolved, skipping')
+        return
+    }
+    if (issueStatus == 'suppressed') {
+        print(f'Issue {issueId} is suppressed, skipping')
+        return
+    }
+}
+
+// Immediately mark as pending_release to block other events
+fetch(phBaseUrl, {
+    'method': 'PATCH',
+    'headers': {
+        'Authorization': f'Bearer {inputs.posthogApiKey}',
+        'Content-Type': 'application/json'
+    },
+    'body': {
+        'status': 'pending_release'
+    }
+})
+
+// Dedup check 2: Anthropic sessions (catches race condition)
+let title := f'{errorType}: {errorMessage}'
+let sessionsResponse := fetch('https://api.anthropic.com/v1/sessions', {
+    'method': 'GET',
+    'headers': {
+        'x-api-key': inputs.anthropicApiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'managed-agents-2026-04-01'
+    }
+})
+
+if (sessionsResponse.status < 400) {
+    let sessions := sessionsResponse.body.data ?? []
+    for (let i, s in sessions) {
+        if (s.title == title) {
+            print(f'Session already exists for "{title}", skipping')
+            return
         }
     }
 }
 
-let repoUrl := inputs.repo_url
-let githubToken := inputs.github_token
-let anthropicApiKey := inputs.anthropic_api_key
-let agentId := inputs.agent_id
+let stackSummary := 'No stack trace'
+if (length(exList) > 0) {
+    let firstEx := exList[1]
+    let frames := firstEx.stacktrace.frames ?? []
+    if (length(frames) > 0) {
+        let f := frames[1]
+        stackSummary := f'{f.resolved_name ?? f.mangled_name ?? "?"} at {f.source ?? f.filename ?? "?"}:{f.line ?? "?"}'
+    }
+}
 
-let userMessage := f'A new exception was captured in production.\n\nRepository: {repoUrl}\nGITHUB_TOKEN: {githubToken}\n\nException Type: {exceptionType}\nException Value: {exceptionValue}\n\nStack Trace:\n{stackTrace}\n\nPlease clone the repo, analyze the error, fix the bug, and open a PR.'
+print(f'New exception: {errorType}: {errorMessage}')
 
-// Create a new Managed Agent session
 let sessionResponse := fetch('https://api.anthropic.com/v1/sessions', {
     'method': 'POST',
     'headers': {
-        'x-api-key': anthropicApiKey,
+        'Content-Type': 'application/json',
+        'x-api-key': inputs.anthropicApiKey,
         'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'managed-agents-2026-04-01',
-        'content-type': 'application/json'
+        'anthropic-beta': 'managed-agents-2026-04-01'
     },
     'body': {
-        'agent_id': agentId,
-        'environment_id': inputs.environment_id
+        'agent': inputs.agentId,
+        'environment_id': inputs.environmentId,
+        'title': title
     }
 })
 
-if (sessionResponse.status != 200) {
-    print(f'Failed to create session: {sessionResponse.status}')
-    return
+if (sessionResponse.status >= 400) {
+    throw Error(f'Failed to create session: {sessionResponse.status}: {sessionResponse.body}')
 }
 
 let sessionId := sessionResponse.body.id
-print(f'Created session: {sessionId}')
 
-// Send the error details as a user message
-let eventResponse := fetch(f'https://api.anthropic.com/v1/sessions/{sessionId}/events', {
+let userMessage := f'A production exception was captured by PostHog. Fix this bug, open a PR, merge it, then resolve the PostHog error.\n\nGITHUB_TOKEN: {inputs.githubToken}\nREPO: {inputs.githubRepo}\nDEFAULT_BRANCH: {inputs.defaultBranch}\nPOSTHOG_API_KEY: {inputs.posthogApiKey}\nPOSTHOG_ISSUE_URL: {phBaseUrl}\n\nERROR DETAILS:\n- Type: {errorType}\n- Message: {errorMessage}\n- URL: {currentUrl}\n- Source files: {sources}\n- Stack: {stackSummary}\n- Full exception data: {jsonStringify(exList)}\n\nAfter merging the PR, resolve the PostHog error by sending PATCH to POSTHOG_ISSUE_URL with body status=resolved and Authorization Bearer POSTHOG_API_KEY header.'
+
+let eventsResponse := fetch(f'https://api.anthropic.com/v1/sessions/{sessionId}/events', {
     'method': 'POST',
     'headers': {
-        'x-api-key': anthropicApiKey,
+        'Content-Type': 'application/json',
+        'x-api-key': inputs.anthropicApiKey,
         'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'managed-agents-2026-04-01',
-        'content-type': 'application/json'
+        'anthropic-beta': 'managed-agents-2026-04-01'
     },
     'body': {
-        'type': 'user_message',
-        'message': {
-            'role': 'user',
-            'content': userMessage
-        }
+        'events': [
+            {
+                'type': 'user.message',
+                'content': [{'type': 'text', 'text': userMessage}]
+            }
+        ]
     }
 })
 
-if (eventResponse.status != 200) {
-    print(f'Failed to send message: {eventResponse.status}')
-    return
+if (eventsResponse.status >= 400) {
+    throw Error(f'Failed to send event: {eventsResponse.status}: {eventsResponse.body}')
 }
 
-print(f'Sent error to agent session {sessionId} for {exceptionType}: {exceptionValue}')
+print(f'Agent dispatched: session {sessionId}')

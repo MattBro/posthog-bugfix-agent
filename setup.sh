@@ -118,13 +118,23 @@ fi
 
 echo "==> Updating PostHog Hog function..."
 
-HOG_SOURCE=$(cat "${SCRIPT_DIR}/hog-function.hog")
-
-# Build the PATCH payload with the Hog source
 PATCH_BODY=$(python3 -c "
-import json, sys
+import json
 source = open('${SCRIPT_DIR}/hog-function.hog').read()
-print(json.dumps({'hog': source}))
+payload = {
+    'hog': source,
+    'inputs_schema': [
+        {'type': 'string', 'key': 'anthropicApiKey', 'label': 'Anthropic API Key', 'required': True, 'secret': True},
+        {'type': 'string', 'key': 'githubToken', 'label': 'GitHub Token', 'required': True, 'secret': True},
+        {'type': 'string', 'key': 'posthogApiKey', 'label': 'PostHog Personal API Key', 'required': True, 'secret': True, 'description': 'For updating error tracking issues'},
+        {'type': 'string', 'key': 'githubRepo', 'label': 'GitHub Repo', 'required': True},
+        {'type': 'string', 'key': 'defaultBranch', 'label': 'Default Branch', 'required': True},
+        {'type': 'string', 'key': 'agentId', 'label': 'Claude Agent ID', 'required': True},
+        {'type': 'string', 'key': 'environmentId', 'label': 'Claude Environment ID', 'required': True},
+        {'type': 'string', 'key': 'posthogProjectId', 'label': 'PostHog Project ID', 'required': True},
+    ]
+}
+print(json.dumps(payload))
 ")
 
 RESPONSE=$(curl -s -w "\n%{http_code}" \
@@ -132,7 +142,7 @@ RESPONSE=$(curl -s -w "\n%{http_code}" \
     -H "Authorization: Bearer ${POSTHOG_API_KEY}" \
     -H "content-type: application/json" \
     -d "$PATCH_BODY" \
-    "${POSTHOG_API}/projects/${POSTHOG_PROJECT_ID}/hog_functions/${POSTHOG_FUNCTION_ID}/")
+    "${POSTHOG_API}/environments/${POSTHOG_PROJECT_ID}/hog_functions/${POSTHOG_FUNCTION_ID}/")
 
 HTTP_CODE=$(echo "$RESPONSE" | tail -1)
 
