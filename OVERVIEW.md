@@ -1,37 +1,38 @@
 # How it works
 
 ```mermaid
-flowchart TD
-    A["Production App"] -->|"$exception event"| B["PostHog Error Tracking"]
-    B -->|"triggers"| C["Hog Function"]
+flowchart LR
+    A["Production App"] -- "$exception" --> B["PostHog"]
+    B -- "triggers" --> C["Hog Function<br/><i>CAS dedup</i>"]
+    C -- "create session" --> D["Claude Agent"]
+    D -- "clone, fix, PR, merge" --> E["GitHub"]
+    D -- "resolve issue" --> B
 
-    subgraph dedup ["Dedup: Compare-and-Swap"]
-        C --> D{"Issue status?"}
-        D -->|"resolved / pending_release / suppressed"| E["Skip"]
-        D -->|"active"| F["Write nonce to description"]
-        F --> G{"Read back - nonce matches?"}
-        G -->|"no (lost race)"| E
-        G -->|"yes (won lock)"| H["Continue"]
-    end
+    style A fill:#2d2d2d,stroke:#555,color:#eee
+    style B fill:#1a1a2e,stroke:#e94560,color:#eee
+    style C fill:#1a1a2e,stroke:#e94560,color:#eee
+    style D fill:#1a1a2e,stroke:#0f3460,color:#eee
+    style E fill:#2d2d2d,stroke:#555,color:#eee
+```
 
-    H -->|"POST /v1/sessions"| I["Claude Managed Agent"]
+### Dedup detail (CAS)
 
-    subgraph agent ["Agent Session"]
-        I --> J["Clone repo via GITHUB_TOKEN"]
-        J --> K["Read stack trace, find root cause"]
-        K --> L["Write minimal fix"]
-        L --> M["Push fix/ branch"]
-        M --> N["Open PR via GitHub API"]
-        N --> O["Squash-merge PR"]
-        O --> P["PATCH PostHog issue -> resolved"]
-    end
+```mermaid
+flowchart LR
+    A{"Status?"} -- "already handled" --> B["Skip"]
+    A -- "active" --> C["Write nonce"] --> D{"Read back"}
+    D -- "nonce matches" --> E["Won lock - proceed"]
+    D -- "different nonce" --> B
 
-    P --> Q["Bug fixed, PR merged, error resolved"]
+    style B fill:#e94560,stroke:#e94560,color:#fff
+    style E fill:#16c784,stroke:#16c784,color:#fff
+```
 
-    style dedup fill:#1a1a2e,stroke:#e94560,color:#eee
-    style agent fill:#1a1a2e,stroke:#0f3460,color:#eee
-    style E fill:#e94560,stroke:#e94560,color:#fff
-    style Q fill:#16c784,stroke:#16c784,color:#fff
+### Agent session
+
+```mermaid
+flowchart LR
+    A["Clone repo"] --> B["Analyze error"] --> C["Fix bug"] --> D["Push + PR"] --> E["Merge"] --> F["Resolve in PostHog"]
 ```
 
 ## Files
