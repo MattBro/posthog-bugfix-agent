@@ -44,6 +44,31 @@ See [OVERVIEW.md](OVERVIEW.md) for the full breakdown of why simpler approaches 
 - GitHub token with `repo` scope (push + PR permissions) for the target repository
 - A PostHog project with error tracking enabled and a Hog function already created (setup.sh updates via PATCH, it does not create the function from scratch)
 
+### Create a vault for GitHub credentials
+
+GitHub credentials are stored in an Anthropic [Vault](https://docs.anthropic.com/en/docs/agents/managed-agents/vaults) - they never appear in the agent prompt or session logs. The agent accesses GitHub through MCP tools, and the vault proxy handles auth.
+
+```bash
+# Create a vault
+curl -X POST https://api.anthropic.com/v1/vaults \
+  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "anthropic-beta: managed-agents-2026-04-01" \
+  -H "content-type: application/json" \
+  -d '{"display_name": "posthog-bugfix-agent"}'
+# => Save the vault ID (vlt_...)
+
+# Register your GitHub token in the vault
+curl -X POST https://api.anthropic.com/v1/vaults/YOUR_VAULT_ID/credentials \
+  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "anthropic-beta: managed-agents-2026-04-01" \
+  -H "content-type: application/json" \
+  -d '{"display_name": "GitHub", "auth": {"type": "static_bearer", "mcp_server_url": "https://api.githubcopilot.com/mcp/", "token": "YOUR_GITHUB_TOKEN"}}'
+```
+
+Set the vault ID as the `vaultId` input in your Hog function.
+
 ### First-time deploy
 
 On first run, the script creates the agent and environment and prints their IDs. Save these for future deploys.
@@ -93,7 +118,7 @@ Configure these in the PostHog UI for the Hog function (or they're deployed via 
 | Input | Description |
 |---|---|
 | `anthropicApiKey` | Anthropic API key for creating agent sessions |
-| `githubToken` | GitHub PAT or app token for cloning/pushing |
+| `vaultId` | Claude Vault ID containing GitHub credentials (see below) |
 | `githubRepo` | GitHub repo, e.g. `owner/repo` |
 | `defaultBranch` | Default branch name, e.g. `main` |
 | `posthogApiKey` | PostHog personal API key (for resolving error tracking issues) |
@@ -106,7 +131,7 @@ Configure these in the PostHog UI for the Hog function (or they're deployed via 
 ## Known limitations
 
 - **CAS is best-effort**: The compare-and-swap uses PostHog's API which is last-write-wins, not truly atomic. In theory two writes could interleave, but in practice the write-then-read window is small enough that duplicates are extremely rare.
-- **Tokens in message text**: The GitHub token and PostHog API key are passed as plaintext in the user message to the agent. This is inherent to the architecture since the agent needs them for git operations and API calls.
+- **PostHog API key in message text**: The PostHog API key is still passed in the user message for resolving error tracking issues. GitHub credentials are handled securely via Vaults.
 
 ## License
 

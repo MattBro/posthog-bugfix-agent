@@ -138,7 +138,7 @@ payload = {
     'hog': source,
     'inputs_schema': [
         {'type': 'string', 'key': 'anthropicApiKey', 'label': 'Anthropic API Key', 'required': True, 'secret': True},
-        {'type': 'string', 'key': 'githubToken', 'label': 'GitHub Token', 'required': True, 'secret': True},
+        {'type': 'string', 'key': 'vaultId', 'label': 'Claude Vault ID', 'required': True, 'description': 'Vault containing GitHub credentials'},
         {'type': 'string', 'key': 'posthogApiKey', 'label': 'PostHog Personal API Key', 'required': True, 'secret': True, 'description': 'For updating error tracking issues'},
         {'type': 'string', 'key': 'githubRepo', 'label': 'GitHub Repo', 'required': True},
         {'type': 'string', 'key': 'defaultBranch', 'label': 'Default Branch', 'required': True},
