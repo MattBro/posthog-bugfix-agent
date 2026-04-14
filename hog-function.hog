@@ -1,7 +1,3 @@
-// PostHog Hog Function: Auto-fix bugs via Claude Managed Agent
-// Function ID: 019d892a-c5a7-0000-bf22-3732d5778c64
-// Project: 380973
-//
 // Triggers on $exception events. Deduplicates using PostHog issue status
 // and Anthropic session title matching. Creates a Claude Managed Agent
 // session that autonomously fixes the bug, opens+merges a PR, and resolves
