@@ -8,6 +8,7 @@ on:
       - environment.json
       - hog-function.hog
       - setup.sh
+      - system-prompt.md
   workflow_dispatch:
 
 jobs:

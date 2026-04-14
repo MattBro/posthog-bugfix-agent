@@ -59,7 +59,14 @@ anthropic_request() {
 
 echo "==> Configuring agent..."
 
-AGENT_JSON=$(cat "${SCRIPT_DIR}/agent.json")
+AGENT_JSON=$(python3 -c "
+import json
+with open('${SCRIPT_DIR}/agent.json') as f:
+    agent = json.load(f)
+with open('${SCRIPT_DIR}/system-prompt.md') as f:
+    agent['system'] = f.read().strip()
+print(json.dumps(agent))
+")
 
 if [[ -n "${AGENT_ID:-}" ]]; then
     RESPONSE=$(anthropic_request GET "/agents/${AGENT_ID}")
