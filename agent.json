@@ -14,7 +14,7 @@
     {
       "type": "url",
       "name": "posthog",
-      "url": "https://mcp.posthog.com/mcp/"
+      "url": "https://mcp.posthog.com/mcp"
     }
   ],
   "tools": [

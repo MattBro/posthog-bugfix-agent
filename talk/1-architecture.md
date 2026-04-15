@@ -19,7 +19,7 @@ flowchart LR
     A["Production App"] -- "$exception" --> B["PostHog"]
     B -- "triggers" --> C["Hog Function"]
     C -- "create session" --> D["Claude Agent"]
-    D -- "clone, fix, PR, merge" --> E["GitHub"]
+    D -- "read, fix, PR, merge" --> E["GitHub"]
     D -- "resolve issue" --> B
 
     style A fill:#2d2d2d,stroke:#555,color:#eee

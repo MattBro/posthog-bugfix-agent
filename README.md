@@ -1,6 +1,6 @@
 # posthog-bugfix-agent
 
-Automated bug-fixing pipeline: PostHog captures an exception, a Hog function creates a [Claude Managed Agent](https://docs.anthropic.com/en/docs/agents/managed-agents) session that clones the repo, fixes the bug, opens + merges a PR, and resolves the error in PostHog.
+Automated bug-fixing pipeline: PostHog captures an exception, a Hog function creates a [Claude Managed Agent](https://docs.anthropic.com/en/docs/agents/managed-agents) session that reads the repo, fixes the bug, opens + merges a PR, and resolves the error in PostHog.
 
 ## Architecture
 
@@ -10,7 +10,7 @@ See [OVERVIEW.md](OVERVIEW.md) for the full diagram, file map, and design notes.
 flowchart LR
     A["$exception"] -->|triggers| B["Hog Function"]
     B -->|dedup + create session| C["Claude Managed Agent"]
-    C -->|clone, fix, PR, merge| D["GitHub"]
+    C -->|read, fix, PR, merge| D["GitHub"]
     C -->|resolve issue| E["PostHog"]
 ```
 
@@ -98,7 +98,7 @@ export ENVIRONMENT_ID="env_..."
 
 ### Deploy via GitHub Actions
 
-The included workflow auto-deploys when `agent.json`, `environment.json`, `hog-function.hog`, or `setup.sh` change on main. It also supports manual triggers.
+The included workflow auto-deploys when `agent.json`, `system-prompt.md`, `environment.json`, `hog-function.hog`, or `setup.sh` change on main. It also supports manual triggers.
 
 Add these as [repository secrets](https://docs.github.com/en/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions):
 

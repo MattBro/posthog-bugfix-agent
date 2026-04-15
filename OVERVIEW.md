@@ -5,7 +5,7 @@ flowchart LR
     A["Production App"] -- "$exception" --> B["PostHog"]
     B -- "triggers" --> C["Hog Function<br/><i>CAS dedup</i>"]
     C -- "create session" --> D["Claude Agent"]
-    D -- "clone, fix, PR, merge" --> E["GitHub"]
+    D -- "read, fix, PR, merge" --> E["GitHub"]
     D -- "resolve issue" --> B
 
     style A fill:#2d2d2d,stroke:#555,color:#eee
@@ -19,7 +19,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    A["Clone repo"] --> B["Analyze error"] --> C["Fix bug"] --> D["Push + PR"] --> E["Merge"] --> F["Resolve in PostHog"]
+    A["Read repo via MCP"] --> B["Analyze error"] --> C["Fix bug"] --> D["Push + PR"] --> E["Merge"] --> F["Resolve via PostHog MCP"]
 ```
 
 ## Files
@@ -56,18 +56,19 @@ Write a unique nonce, read it back. PostHog is last-write-wins, so only one writ
 
 ### 2. Secrets
 
-Don't put tokens in the prompt. Use [Vaults](https://platform.claude.com/docs/en/agents/managed-agents/vaults) + GitHub MCP.
+Don't put tokens in the prompt. Use [Vaults](https://platform.claude.com/docs/en/agents/managed-agents/vaults) + MCP.
 
 ```mermaid
 flowchart LR
     A["Hog Function"] -- "vault_ids" --> B["Session"]
     B -- "MCP tool call" --> C["Vault Proxy"]
     C -- "injects auth" --> D["GitHub API"]
+    C -- "injects auth" --> E["PostHog API"]
 
     style C fill:#16c784,stroke:#16c784,color:#fff
 ```
 
-Vault stores the PAT. Agent declares MCP server (no token). Session gets `vault_ids`. Proxy injects auth. Agent never sees the token.
+Vault stores credentials for both GitHub and PostHog. Agent declares MCP servers (no tokens). Session gets `vault_ids`. Proxy injects auth. Agent never sees any credentials.
 
 ### 3. Token efficiency
 
@@ -75,7 +76,7 @@ System prompt is sent every turn. Compress it.
 
 ```
 Before (~500 tokens): "You are an autonomous bug-fixing agent. When you receive..."
-After  (~250 tokens): "Autonomous bugfix agent. User msg has REPO, GITHUB_TOKEN..."
+After  (~250 tokens): "Autonomous bugfix agent. User msg has REPO, DEFAULT_BRANCH..."
 ```
 
 Also strip duplicate instructions from the user message - don't repeat what the system prompt already says.
@@ -86,7 +87,6 @@ The agent kept hitting the same avoidable issues every run, burning tokens. Fix:
 
 ### 5. Scaling to large codebases
 
-Current setup clones per-session - fine for small repos, expensive for large ones. Two paths:
+Current setup uses MCP-only (reads files on demand via GitHub MCP). For larger repos where the agent needs to run tests or builds locally:
 
-- **`init_script`**: Pre-clone the repo when the container starts. Agent wakes up with code on disk.
-- **MCP-only**: Use GitHub MCP tools to read only the files needed. No clone at all.
+- **`init_script`**: Pre-clone the repo when the container starts. Agent wakes up with code on disk, can run tests.
