@@ -131,7 +131,7 @@ Configure these in the PostHog UI for the Hog function (or they're deployed via 
 ## Known limitations
 
 - **CAS is best-effort**: The compare-and-swap uses PostHog's API which is last-write-wins, not truly atomic. In theory two writes could interleave, but in practice the write-then-read window is small enough that duplicates are extremely rare.
-- **PostHog API key in message text**: The PostHog API key is still passed in the user message for resolving error tracking issues. GitHub credentials are handled securely via Vaults.
+- **Hog function timeout**: The Anthropic session creation API can be slow on cold starts, causing Hog function `fetch()` timeouts. The function retries automatically but the first invocation may show as failed.
 
 ## License
 

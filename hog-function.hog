@@ -102,7 +102,7 @@ if (sessionResponse.status >= 400) {
 
 let sessionId := sessionResponse.body.id
 
-let userMessage := f'New production exception. Fix it.\n\nREPO: {inputs.githubRepo}\nDEFAULT_BRANCH: {inputs.defaultBranch}\nGIT_AUTHOR_NAME: {inputs.gitAuthorName}\nGIT_AUTHOR_EMAIL: {inputs.gitAuthorEmail}\nPOSTHOG_API_KEY: {inputs.posthogApiKey}\nPOSTHOG_ISSUE_URL: {phBaseUrl}\n\nERROR:\n{errorType}: {errorMessage}\nURL: {currentUrl}\nStack: {stackSummary}\nFull: {jsonStringify(exList)}'
+let userMessage := f'New production exception. Fix it.\n\nREPO: {inputs.githubRepo}\nDEFAULT_BRANCH: {inputs.defaultBranch}\nGIT_AUTHOR_NAME: {inputs.gitAuthorName}\nGIT_AUTHOR_EMAIL: {inputs.gitAuthorEmail}\nPOSTHOG_ISSUE_ID: {issueId}\nPOSTHOG_PROJECT_ID: {inputs.posthogProjectId}\n\nERROR:\n{errorType}: {errorMessage}\nURL: {currentUrl}\nStack: {stackSummary}\nFull: {jsonStringify(exList)}'
 
 let eventsResponse := fetch(f'https://api.anthropic.com/v1/sessions/{sessionId}/events', {
     'method': 'POST',
