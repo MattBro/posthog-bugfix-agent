@@ -1,0 +1,117 @@
+// Triggers on $exception events. Deduplicates using CAS (compare-and-swap)
+// on the PostHog error issue, then POSTs the error to a Cursor Automation
+// webhook trigger. The Cursor Cloud Agent (configured in the Cursor dashboard)
+// clones the repo, fixes the bug, opens a PR, and resolves the PostHog issue
+// via the PostHog MCP.
+//
+// This is the Cursor backend. The repo, branch, agent prompt, GitHub auth, and
+// PostHog MCP all live in the Cursor automation, so this function only dedups
+// and forwards the error. See cursor/README.md for setup.
+
+let errorType := event.properties.$exception_types[1] ?? 'Error'
+let errorMessage := event.properties.$exception_values[1] ?? 'Unknown error'
+let issueId := event.properties.$exception_issue_id ?? ''
+let currentUrl := event.properties.$current_url ?? 'unknown'
+let exList := event.properties.$exception_list ?? []
+
+if (empty(issueId)) {
+    print('No issue ID, skipping')
+    return
+}
+
+let phBaseUrl := f'https://us.posthog.com/api/environments/{inputs.posthogProjectId}/error_tracking/issues/{issueId}/'
+let phHeaders := {
+    'Authorization': f'Bearer {inputs.posthogApiKey}',
+    'Content-Type': 'application/json'
+}
+
+// Quick check: skip if already handled
+let issueResponse := fetch(phBaseUrl, {
+    'method': 'GET',
+    'headers': phHeaders
+})
+
+if (issueResponse.status < 400) {
+    let issueStatus := issueResponse.body.status ?? 'active'
+    if (issueStatus == 'pending_release') {
+        print(f'Issue {issueId} already pending_release, skipping')
+        return
+    }
+    if (issueStatus == 'resolved') {
+        print(f'Issue {issueId} already resolved, skipping')
+        return
+    }
+    if (issueStatus == 'suppressed') {
+        print(f'Issue {issueId} suppressed, skipping')
+        return
+    }
+}
+
+// CAS: write nonce, read back, check if we won
+let nonce := f'bugfix-lock-{now()}-{event.uuid}'
+
+fetch(phBaseUrl, {
+    'method': 'PATCH',
+    'headers': phHeaders,
+    'body': {
+        'status': 'pending_release',
+        'description': nonce
+    }
+})
+
+let readBack := fetch(phBaseUrl, {
+    'method': 'GET',
+    'headers': phHeaders
+})
+
+if (readBack.status < 400) {
+    if (readBack.body.description != nonce) {
+        print(f'Lost CAS race for issue {issueId}, skipping')
+        return
+    }
+}
+
+// We won the lock. Extract stack info.
+let stackSummary := 'No stack trace'
+if (length(exList) > 0) {
+    let firstEx := exList[1]
+    let frames := firstEx.stacktrace.frames ?? []
+    if (length(frames) > 0) {
+        let f := frames[1]
+        stackSummary := f'{f.resolved_name ?? f.mangled_name ?? "?"} at {f.source ?? f.filename ?? "?"}:{f.line ?? "?"}'
+    }
+}
+
+print(f'Won lock for {errorType}: {errorMessage}')
+
+let issueUrl := f'https://us.posthog.com/project/{inputs.posthogProjectId}/error_tracking/{issueId}'
+
+// Cursor generates this URL + API key when you save the automation with a
+// Webhook trigger. Confirm the exact auth header against the curl snippet
+// Cursor shows you; Bearer matches the rest of the Cursor API.
+let cursorResponse := fetch(inputs.cursorWebhookUrl, {
+    'method': 'POST',
+    'headers': {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {inputs.cursorApiKey}'
+    },
+    'body': {
+        'source': 'posthog-error-tracking',
+        'repo': inputs.githubRepo,
+        'defaultBranch': inputs.defaultBranch,
+        'posthogProjectId': inputs.posthogProjectId,
+        'posthogIssueId': issueId,
+        'posthogIssueUrl': issueUrl,
+        'errorType': errorType,
+        'errorMessage': errorMessage,
+        'url': currentUrl,
+        'stackSummary': stackSummary,
+        'exceptionList': exList
+    }
+})
+
+if (cursorResponse.status >= 400) {
+    throw Error(f'Failed to trigger Cursor automation: {cursorResponse.status}: {cursorResponse.body}')
+}
+
+print(f'Cursor agent dispatched for issue {issueId}')

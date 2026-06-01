@@ -2,6 +2,15 @@
 
 Automated bug-fixing pipeline: PostHog captures an exception, a Hog function creates a [Claude Managed Agent](https://docs.anthropic.com/en/docs/agents/managed-agents) session that reads the repo, fixes the bug, opens + merges a PR, and resolves the error in PostHog.
 
+## Backends
+
+The bug-fixing agent can run on either backend. They share the same PostHog trigger and CAS dedup; they differ in who runs the agent.
+
+| Backend | Agent | Setup |
+|---|---|---|
+| Claude Managed Agent (default) | Anthropic Managed Agents API | this README |
+| Cursor Cloud Agent | [Cursor Automation](https://cursor.com/docs/cloud-agent/automations) webhook trigger | [`cursor/`](cursor/README.md) |
+
 ## Architecture
 
 See [OVERVIEW.md](OVERVIEW.md) for the full diagram, file map, and design notes.
